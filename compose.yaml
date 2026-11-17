@@ -1,0 +1,14 @@
+services:
+  astra-nbody:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: astra-nbody:latest
+    container_name: astra-nbody
+    command:
+      - "--particles"
+      - "1024"
+      - "--steps"
+      - "100"
+    restart: "no"
+    init: true

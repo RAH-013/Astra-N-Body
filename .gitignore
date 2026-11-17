@@ -1,0 +1,13 @@
+
+build/
+cmake-build-*/
+.vscode/
+.idea/
+.vs/
+*.log
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+.DS_Store
