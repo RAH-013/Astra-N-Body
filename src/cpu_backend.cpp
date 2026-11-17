@@ -1,4 +1,3 @@
-
 #include "astra/cpu_backend.hpp"
 
 #include <cmath>
@@ -24,16 +23,14 @@ void CPUBackend::calculate_accelerations(
     #endif
     for (std::ptrdiff_t i = 0; i < static_cast<std::ptrdiff_t>(count); ++i) {
         Vec3 acceleration{};
-
-        const Vec3 position_i = particles[i].position;
+        const Vec3 position_i = particles[i].position.xyz();
 
         for (std::size_t j = 0; j < count; ++j) {
             if (static_cast<std::size_t>(i) == j) {
                 continue;
             }
 
-            const Vec3 displacement =
-                particles[j].position - position_i;
+            const Vec3 displacement = particles[j].position.xyz() - position_i;
 
             const double distance_squared =
                 displacement.x * displacement.x +
@@ -41,21 +38,20 @@ void CPUBackend::calculate_accelerations(
                 displacement.z * displacement.z +
                 softening_squared;
 
-            const double inverse_distance =
-                1.0 / std::sqrt(distance_squared);
-
+            const double inverse_distance = 1.0 / std::sqrt(distance_squared);
             const double inverse_distance_cubed =
                 inverse_distance * inverse_distance * inverse_distance;
 
             const double factor =
                 gravitational_constant *
-                particles[j].mass *
+                particles[j].mass() *
                 inverse_distance_cubed;
 
             acceleration += displacement * factor;
         }
 
-        particles[i].acceleration = acceleration;
+        particles[i].acceleration.set_xyz(acceleration);
+        particles[i].acceleration.w = 0.0;
     }
 }
 
@@ -68,15 +64,14 @@ void CPUBackend::integrate(
     #ifdef ASTRA_HAS_OPENMP
     #pragma omp parallel for schedule(static)
     #endif
-    for (std::ptrdiff_t i = 0;
-         i < static_cast<std::ptrdiff_t>(particles.size());
-         ++i) {
-
+    for (std::ptrdiff_t i = 0; i < static_cast<std::ptrdiff_t>(particles.size()); ++i) {
         Particle& particle = particles[i];
 
-        particle.velocity += particle.acceleration * half_step;
+        const Vec3 half_velocity =
+            particle.velocity.xyz() + particle.acceleration.xyz() * half_step;
 
-        particle.position += particle.velocity * time_step;
+        particle.velocity.set_xyz(half_velocity);
+        particle.position.add_xyz(half_velocity * time_step);
     }
 }
 
@@ -89,14 +84,10 @@ void CPUBackend::finish_integration(
     #ifdef ASTRA_HAS_OPENMP
     #pragma omp parallel for schedule(static)
     #endif
-    for (std::ptrdiff_t i = 0;
-         i < static_cast<std::ptrdiff_t>(particles.size());
-         ++i) {
-
+    for (std::ptrdiff_t i = 0; i < static_cast<std::ptrdiff_t>(particles.size()); ++i) {
         Particle& particle = particles[i];
-
-        particle.velocity += particle.acceleration * half_step;
+        particle.velocity.add_xyz(particle.acceleration.xyz() * half_step);
     }
 }
 
-}
+} // namespace astra

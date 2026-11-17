@@ -1,10 +1,8 @@
-
 #pragma once
 
 #include <vector>
 
 #include "astra/particle.hpp"
-#include "astra/simulation.hpp"
 
 namespace astra {
 
@@ -27,4 +25,4 @@ public:
     );
 };
 
-}
+} // namespace astra

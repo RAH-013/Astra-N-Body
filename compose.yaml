@@ -3,9 +3,17 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: astra-nbody:latest
+    image: astra-nbody:0.2.0
     container_name: astra-nbody
+    devices:
+      - /dev/dri:/dev/dri
+    group_add:
+      - video
+    security_opt:
+      - label=disable
     command:
+      - "--backend"
+      - "auto"
       - "--particles"
       - "1024"
       - "--steps"
