@@ -11,3 +11,8 @@ cmake-build-*/
 *.dll
 *.so
 .DS_Store
+
+results/*
+!results/.gitkeep
+__pycache__/
+*.pyc

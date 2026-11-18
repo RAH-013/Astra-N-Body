@@ -3,14 +3,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: astra-nbody:0.2.0
-    container_name: astra-nbody
-    devices:
-      - /dev/dri:/dev/dri
-    group_add:
-      - video
-    security_opt:
-      - label=disable
+    image: astra-nbody:0.2.2
+    container_name: astra-nbody-cpu
     command:
       - "--backend"
       - "auto"
@@ -18,5 +12,7 @@ services:
       - "1024"
       - "--steps"
       - "100"
+    volumes:
+      - ./results:/app/results
     restart: "no"
     init: true

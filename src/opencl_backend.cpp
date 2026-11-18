@@ -91,8 +91,8 @@ OpenCLBackend::OpenCLBackend(
     (void)kernel_path;
     throw std::runtime_error("ASTRA N-BODY was built without OpenCL support.");
 #else
-    if (particle_count_ == 0) {
-        throw std::invalid_argument("OpenCLBackend requires at least 1 particle");
+    if (particle_count_ == 0 || particle_count_ > static_cast<std::size_t>(UINT32_MAX)) {
+        throw std::invalid_argument("OpenCLBackend particle count must fit in an unsigned 32-bit integer");
     }
 
     if (requested_precision == PrecisionMode::FP64) {
@@ -142,7 +142,7 @@ OpenCLBackend::OpenCLBackend(
         program_ = clCreateProgramWithSource(context_, 1, &src_ptr, &src_len, &err);
         check_cl(err, "clCreateProgramWithSource");
 
-        std::string build_options = "-cl-mad-enable";
+        std::string build_options = "-cl-opt-disable";  
         if (use_fp64_) {
             build_options += " -DASTRA_USE_FP64=1";
         }

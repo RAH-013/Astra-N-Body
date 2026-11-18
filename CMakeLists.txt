@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 
 project(astra_nbody
-    VERSION 0.2.0
+    VERSION 0.2.2
     DESCRIPTION "3D gravitational N-body simulation with OpenMP and OpenCL"
     LANGUAGES CXX
 )
@@ -74,6 +74,7 @@ endif()
 
 install(TARGETS astra-nbody RUNTIME DESTINATION bin)
 install(FILES kernels/nbody.cl DESTINATION share/astra-nbody/kernels)
+install(DIRECTORY include/astra DESTINATION include)
 
 if(ASTRA_BUILD_TESTS)
     enable_testing()
@@ -85,4 +86,5 @@ if(ASTRA_BUILD_TESTS)
         target_compile_options(astra_tests PRIVATE -Wall -Wextra -Wpedantic -O3)
     endif()
     add_test(NAME astra_unit_and_integration_tests COMMAND astra_tests)
+    set_tests_properties(astra_unit_and_integration_tests PROPERTIES ENVIRONMENT "OMP_NUM_THREADS=4")
 endif()

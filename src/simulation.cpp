@@ -23,7 +23,10 @@ Simulation::Simulation(SimulationConfig config)
         throw std::invalid_argument("At least two particles are required");
     }
 
-    if (config_.time_step <= 0.0 ||
+    if (!std::isfinite(config_.time_step) ||
+        !std::isfinite(config_.gravitational_constant) ||
+        !std::isfinite(config_.softening) ||
+        config_.time_step <= 0.0 ||
         config_.gravitational_constant <= 0.0 ||
         config_.softening < 0.0) {
         throw std::invalid_argument("Invalid simulation configuration");
@@ -51,14 +54,15 @@ void Simulation::initialize_backend() {
         auto selected = OpenCLDeviceManager::select_best_device(
             config_.opencl_platform_index,
             config_.opencl_device_index,
-            require_fp64
+            require_fp64,
+            true
         );
 
         if (!selected.has_value()) {
             throw std::runtime_error(
                 require_fp64
-                    ? "No OpenCL device with cl_khr_fp64 support found."
-                    : "No compatible OpenCL device found."
+                    ? "No OpenCL GPU with FP64 support found."
+                    : "No OpenCL GPU device found."
             );
         }
 
@@ -88,6 +92,7 @@ void Simulation::initialize_backend() {
 }
 
 void Simulation::initialize_galaxy() {
+    stats_ = {};
     std::mt19937_64 generator(config_.seed);
 
     // Uniform-surface-density disk prevents central crowding and resolves softening timescales
@@ -274,7 +279,7 @@ void Simulation::initialize_galaxy() {
         const auto t0 = std::chrono::steady_clock::now();
         opencl_backend_->upload_particles(particles_);
         const auto t1 = std::chrono::steady_clock::now();
-        stats_.host_transfer_seconds = std::chrono::duration<double>(t1 - t0).count();
+        stats_.host_transfer_seconds += std::chrono::duration<double>(t1 - t0).count();
         device_state_dirty_ = false;
     }
 
@@ -287,6 +292,16 @@ void Simulation::set_particles(std::vector<Particle> particles) {
         throw std::invalid_argument("Particle count does not match SimulationConfig");
     }
 
+    for (const auto& particle : particles) {
+        if (!std::isfinite(particle.mass()) || particle.mass() <= 0.0 ||
+            !std::isfinite(particle.position.x) || !std::isfinite(particle.position.y) ||
+            !std::isfinite(particle.position.z) || !std::isfinite(particle.velocity.x) ||
+            !std::isfinite(particle.velocity.y) || !std::isfinite(particle.velocity.z)) {
+            throw std::invalid_argument("Particle state must contain finite coordinates, velocities, and positive mass");
+        }
+    }
+
+    stats_ = {};
     particles_ = std::move(particles);
     calculate_accelerations();
 
@@ -294,7 +309,7 @@ void Simulation::set_particles(std::vector<Particle> particles) {
         const auto t0 = std::chrono::steady_clock::now();
         opencl_backend_->upload_particles(particles_);
         const auto t1 = std::chrono::steady_clock::now();
-        stats_.host_transfer_seconds = std::chrono::duration<double>(t1 - t0).count();
+        stats_.host_transfer_seconds += std::chrono::duration<double>(t1 - t0).count();
         device_state_dirty_ = false;
     }
 
@@ -339,7 +354,7 @@ void Simulation::run(std::size_t steps) {
         );
         const auto end = std::chrono::steady_clock::now();
 
-        stats_.elapsed_seconds = std::chrono::duration<double>(end - start).count();
+        stats_.elapsed_seconds += std::chrono::duration<double>(end - start).count();
         stats_.completed_steps += steps;
 
         const auto dl_start = std::chrono::steady_clock::now();
@@ -356,7 +371,7 @@ void Simulation::run(std::size_t steps) {
             ++stats_.completed_steps;
         }
         const auto end = std::chrono::steady_clock::now();
-        stats_.elapsed_seconds = std::chrono::duration<double>(end - start).count();
+        stats_.elapsed_seconds += std::chrono::duration<double>(end - start).count();
     }
 
     calculate_statistics();

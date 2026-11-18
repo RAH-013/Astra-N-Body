@@ -10,6 +10,7 @@ namespace astra {
 
 namespace {
 
+#ifdef ASTRA_HAS_OPENCL
 std::string to_lower(std::string value) {
     std::transform(
         value.begin(),
@@ -24,7 +25,6 @@ bool contains_icase(const std::string& haystack, const std::string& needle) {
     return to_lower(haystack).find(to_lower(needle)) != std::string::npos;
 }
 
-#ifdef ASTRA_HAS_OPENCL
 std::string get_platform_info_string(cl_platform_id platform, cl_platform_info param) {
     std::size_t size = 0;
     if (clGetPlatformInfo(platform, param, 0, nullptr, &size) != CL_SUCCESS || size == 0) {
@@ -229,7 +229,8 @@ std::vector<OpenCLDeviceInfo> OpenCLDeviceManager::enumerate_devices() {
 std::optional<OpenCLDeviceInfo> OpenCLDeviceManager::select_best_device(
     std::optional<std::size_t> preferred_platform,
     std::optional<std::size_t> preferred_device,
-    bool require_fp64
+    bool require_fp64,
+    bool require_gpu
 ) {
     const auto devices = enumerate_devices();
     if (devices.empty()) {
@@ -241,7 +242,8 @@ std::optional<OpenCLDeviceInfo> OpenCLDeviceManager::select_best_device(
         const std::size_t target_d = preferred_device.value_or(0);
         for (const auto& dev : devices) {
             if (dev.platform_index == target_p && dev.device_index == target_d) {
-                if (require_fp64 && !dev.supports_fp64) {
+                if ((require_fp64 && !dev.supports_fp64) ||
+                    (require_gpu && dev.category != OpenCLDeviceCategory::GPU)) {
                     return std::nullopt;
                 }
                 return dev;
@@ -252,7 +254,8 @@ std::optional<OpenCLDeviceInfo> OpenCLDeviceManager::select_best_device(
 
     const OpenCLDeviceInfo* best = nullptr;
     for (const auto& dev : devices) {
-        if (require_fp64 && !dev.supports_fp64) {
+        if ((require_fp64 && !dev.supports_fp64) ||
+            (require_gpu && dev.category != OpenCLDeviceCategory::GPU)) {
             continue;
         }
         if (best == nullptr || dev.selection_score > best->selection_score) {

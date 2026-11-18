@@ -69,7 +69,8 @@ public:
     static std::optional<OpenCLDeviceInfo> select_best_device(
         std::optional<std::size_t> preferred_platform = std::nullopt,
         std::optional<std::size_t> preferred_device = std::nullopt,
-        bool require_fp64 = false
+        bool require_fp64 = false,
+        bool require_gpu = false
     );
 
     static void print_device_list(

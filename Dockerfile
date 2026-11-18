@@ -1,3 +1,4 @@
+
 FROM ubuntu:24.04 AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -5,7 +6,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     cmake \
-    ninja-build \
+    make \
     libomp-dev \
     ocl-icd-opencl-dev \
     opencl-headers \
@@ -20,19 +21,20 @@ COPY kernels ./kernels
 COPY tests ./tests
 
 RUN cmake -S . -B build \
-    -G Ninja \
+    -DCMAKE_GENERATOR="Unix Makefiles" \
     -DCMAKE_BUILD_TYPE=Release \
     -DASTRA_ENABLE_OPENMP=ON \
     -DASTRA_ENABLE_OPENCL=ON \
-    -DASTRA_BUILD_TESTS=ON
-
-RUN cmake --build build --parallel && \
-    ctest --test-dir build --output-on-failure && \
-    cmake --install build --prefix /usr/local
+    -DASTRA_BUILD_TESTS=ON \
+    && cmake --build build --parallel 4 \
+    && ctest --test-dir build --output-on-failure \
+    && cmake --install build --prefix /usr/local
 
 FROM ubuntu:24.04 AS runtime
 
 ENV DEBIAN_FRONTEND=noninteractive
+ENV OCL_ICD_VENDORS=/etc/OpenCL/vendors
+ENV RUSTICL_ENABLE=radeonsi
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgomp1 \

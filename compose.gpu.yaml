@@ -1,0 +1,24 @@
+services:
+  astra-nbody:
+    image: astra-nbody:0.2.2
+    container_name: astra-nbody-gpu
+    environment:
+      RUSTICL_ENABLE: radeonsi
+      RUSTICL_FEATURES: ${RUSTICL_FEATURES:-fp64}
+    devices:
+      - /dev/dri:/dev/dri
+    group_add:
+      - "${VIDEO_GID:-44}"
+      - "${RENDER_GID:-109}"
+    security_opt:
+      - label=disable
+    command:
+      - "--backend"
+      - "opencl"
+      - "--no-fallback"
+      - "--particles"
+      - "1024"
+      - "--steps"
+      - "100"
+    volumes:
+      - ./results:/app/results

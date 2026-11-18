@@ -11,3 +11,6 @@ cmake-build-*
 *.exe
 *.dll
 *.so
+results
+tools
+requirements-visualization.txt

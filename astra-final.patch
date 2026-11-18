@@ -1,0 +1,98 @@
+--- a/Astra-N-Body-main/Dockerfile
++++ b/Astra-N-Body-main/Dockerfile
+@@ -24,15 +24,15 @@
+     -DCMAKE_BUILD_TYPE=Release \
+     -DASTRA_ENABLE_OPENMP=ON \
+     -DASTRA_ENABLE_OPENCL=ON \
+-    -DASTRA_BUILD_TESTS=ON
+-
+-RUN cmake --build build --parallel && \
+-    ctest --test-dir build --output-on-failure && \
+-    cmake --install build --prefix /usr/local
++    -DASTRA_BUILD_TESTS=ON \
++    && cmake --build build --parallel \
++    && ctest --test-dir build --output-on-failure \
++    && cmake --install build --prefix /usr/local
+ 
+ FROM ubuntu:24.04 AS runtime
+ 
+ ENV DEBIAN_FRONTEND=noninteractive
++ENV OCL_ICD_VENDORS=/etc/OpenCL/vendors
+ 
+ RUN apt-get update && apt-get install -y --no-install-recommends \
+     libgomp1 \
+--- a/Astra-N-Body-main/compose.yaml
++++ b/Astra-N-Body-main/compose.yaml
+@@ -3,8 +3,8 @@
+     build:
+       context: .
+       dockerfile: Dockerfile
+-    image: astra-nbody:0.2.1
+-    container_name: astra-nbody
++    image: astra-nbody:0.2.2
++    container_name: astra-nbody-cpu
+     command:
+       - "--backend"
+       - "auto"
+@@ -12,5 +12,7 @@
+       - "1024"
+       - "--steps"
+       - "100"
++    volumes:
++      - ./results:/app/results
+     restart: "no"
+     init: true
+--- a/Astra-N-Body-main/compose.gpu.yaml
++++ b/Astra-N-Body-main/compose.gpu.yaml
+@@ -1,11 +1,17 @@
+ services:
+   astra-nbody:
++    image: astra-nbody:0.2.2
++    container_name: astra-nbody-gpu
+     environment:
+       RUSTICL_ENABLE: radeonsi
++      RUSTICL_FEATURES: ${RUSTICL_FEATURES:-fp64}
+     devices:
+-      - "/dev/dri:/dev/dri"
++      - /dev/dri:/dev/dri
++    group_add:
++      - "${VIDEO_GID:-44}"
++      - "${RENDER_GID:-109}"
+     security_opt:
+-      - "label=disable"
++      - label=disable
+     command:
+       - "--backend"
+       - "opencl"
+@@ -14,3 +20,5 @@
+       - "1024"
+       - "--steps"
+       - "100"
++    volumes:
++      - ./results:/app/results
+--- a/Astra-N-Body-main/README.md
++++ b/Astra-N-Body-main/README.md
+@@ -173,17 +173,21 @@
+ 
+ ```bash
+ docker compose build
+-docker compose up --abort-on-container-exit
++docker compose run --rm astra-nbody
+ ```
+ 
+ Ejecución OpenCL GPU en Linux con `/dev/dri` disponible:
+ 
+ ```bash
++VIDEO_GID=$(getent group video | cut -d: -f3)
++RENDER_GID=$(getent group render | cut -d: -f3)
++export VIDEO_GID RENDER_GID
++
+ docker compose -f compose.yaml -f compose.gpu.yaml build
+ docker compose -f compose.yaml -f compose.gpu.yaml run --rm astra-nbody
+ ```
+ 
+-La configuración GPU requiere que el host tenga un controlador y runtime OpenCL funcionales. El acceso a GPU desde Docker Desktop en Windows depende de la integración del proveedor y no se garantiza mediante el montaje `/dev/dri`. El modo CPU permanece disponible en Windows y Linux.
++La configuración GPU requiere que el host tenga `/dev/dri`, los grupos `video` y `render` (si existen) y un controlador/runtime OpenCL funcional. Si alguno de esos grupos no existe, elimina su entrada `group_add` correspondiente de `compose.gpu.yaml`. La imagen instala Mesa OpenCL/Rusticl; `RUSTICL_ENABLE=radeonsi` activa el controlador AMD. El acceso a GPU desde Docker Desktop en Windows depende de la integración del proveedor y no se garantiza mediante el montaje `/dev/dri`. Para Windows se garantiza el backend CPU; la GPU OpenCL se considera experimental hasta validar el passthrough del runtime. El modo CPU permanece disponible en Windows y Linux.
+ 
+ ## Pruebas
+ 

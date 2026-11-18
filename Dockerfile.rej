@@ -1,0 +1,23 @@
+--- Astra-N-Body-main/Dockerfile
++++ Astra-N-Body-main/Dockerfile
+@@ -24,15 +24,15 @@
+     -DCMAKE_BUILD_TYPE=Release \
+     -DASTRA_ENABLE_OPENMP=ON \
+     -DASTRA_ENABLE_OPENCL=ON \
+-    -DASTRA_BUILD_TESTS=ON
+-
+-RUN cmake --build build --parallel && \
+-    ctest --test-dir build --output-on-failure && \
+-    cmake --install build --prefix /usr/local
++    -DASTRA_BUILD_TESTS=ON \
++    && cmake --build build --parallel \
++    && ctest --test-dir build --output-on-failure \
++    && cmake --install build --prefix /usr/local
+ 
+ FROM ubuntu:24.04 AS runtime
+ 
+ ENV DEBIAN_FRONTEND=noninteractive
++ENV OCL_ICD_VENDORS=/etc/OpenCL/vendors
+ 
+ RUN apt-get update && apt-get install -y --no-install-recommends \
+     libgomp1 \
